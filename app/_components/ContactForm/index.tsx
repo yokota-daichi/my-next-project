@@ -2,7 +2,15 @@
 
 import { createContactData } from '@/app/_actions/contact';
 import { useFormState } from 'react-dom';
-import { sendGAEvent } from '@next/third-parties/google';
+const sendGAEvent = (params: { event: string; value?: string }) => {
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    try {
+      (window as any).gtag('event', params.event, { value: params.value });
+    } catch (_) {
+      // ignore
+    }
+  }
+};
 import styles from './index.module.css';
 
 const initialState = {
