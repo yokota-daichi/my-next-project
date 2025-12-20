@@ -32,8 +32,29 @@ if (!process.env.MICROCMS_API_KEY) {
   throw new Error('MICROCMS_API_KEY is required');
 }
 
+const rawServiceDomain = process.env.MICROCMS_SERVICE_DOMAIN;
+let serviceDomain = rawServiceDomain as string;
+try {
+  if (serviceDomain.startsWith('http')) {
+    const u = new URL(serviceDomain);
+    serviceDomain = u.hostname.split('.')[0];
+  } else if (serviceDomain.includes('/')) {
+    // handle values like "uhr24fy7pd.microcms.io/apis/member"
+    const maybeHost = serviceDomain.split('/')[0];
+    if (maybeHost.includes('.')) {
+      serviceDomain = maybeHost.split('.')[0];
+    }
+  } else if (serviceDomain.includes('.')) {
+    // handle values like "uhr24fy7pd.microcms.io"
+    serviceDomain = serviceDomain.split('.')[0];
+  }
+} catch (e) {
+  // fall back to raw value if parsing fails
+  serviceDomain = rawServiceDomain as string;
+}
+
 const client = createClient({
-  serviceDomain: process.env.MICROCMS_SERVICE_DOMAIN,
+  serviceDomain,
   apiKey: process.env.MICROCMS_API_KEY,
 });
 
@@ -85,17 +106,35 @@ export const getCategoryDetail = async (
 };
 
 export const getAllNewsList = async () => {
-  const listData = await client.getAllContents<News>({
-    endpoint: 'news',
-  });
+  try {
+    const listData = await client.getAllContents<News>({
+      endpoint: 'news',
+    });
 
-  return listData;
+    return listData;
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+    console.warn('[microcms] failed to getAllNewsList:', msg);
+    if (msg.includes('404')) {
+      return [] as News[];
+    }
+    throw e;
+  }
 };
 
 export const getAllCategoryList = async () => {
-  const listData = await client.getAllContents<Category>({
-    endpoint: 'categories',
-  });
+  try {
+    const listData = await client.getAllContents<Category>({
+      endpoint: 'categories',
+    });
 
-  return listData;
+    return listData;
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+    console.warn('[microcms] failed to getAllCategoryList:', msg);
+    if (msg.includes('404')) {
+      return [] as Category[];
+    }
+    throw e;
+  }
 };
